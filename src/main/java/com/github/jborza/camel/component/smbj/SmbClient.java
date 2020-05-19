@@ -40,9 +40,9 @@ public class SmbClient {
         }
     }
 
-    public void storeFile(String name, InputStream inputStream) throws IOException {
+    public void storeFile(String name, InputStream inputStream, Long lastModified) throws IOException {
         try (SmbShare share = makeSmbShare()) {
-            share.storeFile(name, inputStream);
+            share.storeFile(name, inputStream, lastModified);
         }
     }
 

@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.util.Date;
 import java.util.List;
 
 public class SmbOperations implements GenericFileOperations<SmbFile>, SmbShareFactory {
@@ -259,10 +260,11 @@ public class SmbOperations implements GenericFileOperations<SmbFile>, SmbShareFa
         try {
             inputStream = exchange.getIn().getMandatoryBody(InputStream.class);
             log.debug("Storing file: {}", name);
-            if (endpoint.getFileExist() == GenericFileExist.Append)
+            if (endpoint.getFileExist() == GenericFileExist.Append) {
                 smbClient.appendFile(name, inputStream);
-            else
-                smbClient.storeFile(name, inputStream);
+            } else {
+                smbClient.storeFile(name, inputStream, lastModifiedDate(exchange));
+            }
             return true;
         } catch (Exception e) {
             String storeName = getPath(name);
@@ -270,6 +272,20 @@ public class SmbOperations implements GenericFileOperations<SmbFile>, SmbShareFa
         } finally {
             IOHelper.close(inputStream, "store: " + name);
         }
+    }
+
+    private Long lastModifiedDate(Exchange exchange) {
+        Long last = null;
+        if (endpoint.isKeepLastModified()) {
+            Date date = exchange.getIn().getHeader(Exchange.FILE_LAST_MODIFIED, Date.class);
+            if (date != null) {
+                last = date.getTime();
+            } else {
+                // fallback and try a long
+                last = exchange.getIn().getHeader(Exchange.FILE_LAST_MODIFIED, Long.class);
+            }
+        }
+        return last;
     }
 
     private boolean isDfs() {

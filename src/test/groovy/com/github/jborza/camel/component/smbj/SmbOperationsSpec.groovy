@@ -75,7 +75,7 @@ class SmbOperationsSpec extends Specification {
         when:
         ops.storeFile("path/to/file", exchange, 0)
         then:
-        1 * mockSmbClient.storeFile("path/to/file", !null)
+        1 * mockSmbClient.storeFile("path/to/file", !null, null)
     }
 
     def "retrieveFile test"() {
@@ -201,7 +201,7 @@ class SmbOperationsSpec extends Specification {
         def stream = IOUtils.toInputStream("Hello camel-smbj!", Charset.defaultCharset())
         message.setBody(stream)
         exchange.setIn(message)
-        mockSmbClient.storeFile(_, _) >> { throw new IOException() }
+        mockSmbClient.storeFile(_, _, _) >> { throw new IOException() }
         when:
         ops.storeFile("path/to/file", exchange, 0)
         then:

@@ -20,6 +20,9 @@ import com.github.jborza.camel.component.smbj.dfs.DfsResolutionResult;
 import com.github.jborza.camel.component.smbj.dfs.DfsResolver;
 import com.github.jborza.camel.component.smbj.exceptions.AttemptedRenameAcrossSharesException;
 import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.msdtyp.FileTime;
+import com.hierynomus.msfscc.fileinformation.FileAllInformation;
+import com.hierynomus.msfscc.fileinformation.FileBasicInformation;
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2CreateOptions;
@@ -198,12 +201,23 @@ public class SmbShare implements AutoCloseable {
         }
     }
 
-    public void storeFile(String path, InputStream inputStream) throws IOException {
+    public void storeFile(String path, InputStream inputStream, Long lastModified) throws IOException {
         connect(path);
         try (File file = openForWrite(getShare(), getPath());
              OutputStream outputStream = file.getOutputStream()
         ) {
             IOUtils.copy(inputStream, outputStream, bufferSize);
+        }
+        try (File file = openForModification(getShare(), getPath())) {
+            if (lastModified != null) {
+                FileAllInformation fi = file.getFileInformation();
+                FileBasicInformation bfi = new FileBasicInformation(fi.getBasicInformation().getCreationTime(),
+                                                                    fi.getBasicInformation().getLastAccessTime(),
+                                                                    FileTime.ofEpochMillis(lastModified),
+                                                                    FileTime.ofEpochMillis(lastModified),
+                                                                    fi.getBasicInformation().getFileAttributes());
+                file.setFileInformation(bfi);
+            }
         }
     }
 
@@ -279,6 +293,10 @@ public class SmbShare implements AutoCloseable {
 
     private static File openForAppend(DiskShare share, String name) {
         return share.openFile(name, EnumSet.of(AccessMask.GENERIC_WRITE), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OPEN_IF, EnumSet.of(SMB2CreateOptions.FILE_SEQUENTIAL_ONLY));
+    }
+
+    private static File openForModification(DiskShare share, String name) {
+        return share.openFile(name, EnumSet.of(AccessMask.GENERIC_ALL), null, SMB2ShareAccess.ALL, SMB2CreateDisposition.FILE_OPEN, null);
     }
 
     private static File openForRead(DiskShare share, String name) {
